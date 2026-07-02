@@ -1,0 +1,22 @@
+IoT-Enabled Smart Agriculture Monitoring System - Sensor Report
+=================================================================
+Records analyzed : 288
+Period           : 2026-07-01T13:32:01  to  2026-07-02T13:27:01
+
+Soil Moisture (raw ADC, higher = wetter)
+   min=1498  max=2759  avg=2133.9
+
+Temperature (C)
+   min=16.0  max=32.1  avg=24.0
+
+Humidity (%RH)
+   min=48.2  max=81.8  avg=65.0
+
+Light Intensity (raw ADC)
+   min=0  max=3930  avg=1298.2
+
+Water Tank Level (%)
+   min=65.4  max=78.0  avg=74.1
+
+Pump ON readings : 14 / 288
+Alert events     : 2

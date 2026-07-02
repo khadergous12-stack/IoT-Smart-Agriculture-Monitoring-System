@@ -1,0 +1,7 @@
+Smart Agriculture Monitoring System - Alert Log
+==================================================
+
+[2026-07-01T23:32:01] LOW_SOIL_MOISTURE (soil=1498, temp=17.4C, water=78.0%)
+[2026-07-02T12:02:01] LOW_SOIL_MOISTURE (soil=1499, temp=31.8C, water=71.7%)
+
+Total alert events: 2

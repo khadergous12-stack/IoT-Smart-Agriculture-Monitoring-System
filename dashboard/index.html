@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgriPulse · Smart Agriculture Monitoring System</title>
+<meta name="description" content="Real-time IoT Smart Agriculture Monitoring — soil moisture, temperature, humidity, light intensity, water tank and irrigation control on a glassmorphic live dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ===================== RESET & TOKENS ===================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg1: #020d1a;
+  --bg2: #041225;
+  --glass: rgba(255,255,255,0.04);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-hover: rgba(255,255,255,0.08);
+  --neon-green: #00ff88;
+  --neon-blue: #00d4ff;
+  --neon-purple: #a855f7;
+  --neon-amber: #fbbf24;
+  --neon-red: #ff4444;
+  --neon-cyan: #06b6d4;
+  --neon-pink: #ec4899;
+  --text: #e2f0ff;
+  --muted: rgba(200,220,255,0.45);
+  --r: 18px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg1);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+/* ===================== ANIMATED BACKGROUND ===================== */
+#canvas-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 24px 28px 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* ===================== HEADER ===================== */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 20px 28px;
+  margin-bottom: 28px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  position: relative;
+  overflow: hidden;
+}
+header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,255,136,0.04) 0%, rgba(0,212,255,0.04) 50%, rgba(168,85,247,0.04) 100%);
+  pointer-events: none;
+}
+.brand-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--neon-green);
+  text-shadow: 0 0 10px var(--neon-green);
+  margin-bottom: 6px;
+}
+.brand-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(22px, 3vw, 36px);
+  font-weight: 900;
+  letter-spacing: .04em;
+  background: linear-gradient(90deg, var(--neon-green), var(--neon-blue), var(--neon-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.brand-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  letter-spacing: .04em;
+}
+.status-bar {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+}
+.status-item {
+  text-align: center;
+}
+.status-item .s-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.status-item .s-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+.live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--neon-green);
+  text-shadow: 0 0 8px var(--neon-green);
+}
+.live-dot::before {
+  content: '';
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--neon-green);
+  box-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
+  animation: pulseDot 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .45; transform: scale(0.7); }
+}
+@keyframes pumpSpin {
+  from { stroke-dashoffset: 345.4; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes pumpPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px #00d4ff); }
+  50%       { filter: drop-shadow(0 0 22px #00d4ff); }
+}
+@keyframes blink {
+  50% { opacity: .45; }
+}
+
+
+/* ===================== GRID ===================== */
+.grid {
+  display: grid;
+  grid-template-columns: 310px 1fr 300px;
+  grid-template-rows: auto auto;
+  gap: 20px;
+}
+@media (max-width: 1200px) { .grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 750px) { .grid { grid-template-columns: 1fr; } }
+
+/* ===================== GLASS PANEL ===================== */
+.panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r);
+  padding: 22px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: border-color .3s, box-shadow .3s;
+  position: relative;
+  overflow: hidden;
+}
+.panel:hover {
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: 0 8px 40px rgba(0,212,255,0.07);
+}
+.panel-glow-green::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: -40px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(0,255,136,0.12), transparent 70%);
+  pointer-events: none;
+}
+.panel-glow-blue::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: -40px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(0,212,255,0.1), transparent 70%);
+  pointer-events: none;
+}
+.panel-glow-purple::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(168,85,247,0.12), transparent 70%);
+  pointer-events: none;
+}
+.panel-glow-amber::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: -40px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(251,191,36,0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.panel-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.panel-title .badge {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+
+/* ===================== SOIL GAUGE (Left) ===================== */
+.soil-panel {
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.soil-tube-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+.soil-big-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 42px;
+  font-weight: 900;
+  text-align: center;
+  transition: color .6s;
+}
+.soil-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: .08em;
+}
+.soil-raw {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--neon-cyan);
+  text-align: center;
+}
+
+/* ===================== KPI CARDS (Center Top) ===================== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 18px;
+  border-radius: var(--r);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  background: var(--glass);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform .25s, box-shadow .25s;
+  cursor: default;
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.3);
+}
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+  pointer-events: none;
+}
+.kpi-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.kpi-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  transition: color .5s;
+}
+.kpi-unit {
+  font-size: 14px;
+  font-weight: 400;
+  opacity: .6;
+}
+.kpi-arc {
+  margin-top: 8px;
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.kpi-arc-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .7s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── temp ─── */
+.kpi-temp .kpi-label { color: var(--neon-amber); }
+.kpi-temp .kpi-value { color: var(--neon-amber); text-shadow: 0 0 20px rgba(251,191,36,.4); }
+.kpi-temp .kpi-arc-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: 0 0 8px #fbbf24; }
+/* ── humidity ── */
+.kpi-hum .kpi-label { color: var(--neon-blue); }
+.kpi-hum .kpi-value { color: var(--neon-blue); text-shadow: 0 0 20px rgba(0,212,255,.4); }
+.kpi-hum .kpi-arc-fill { background: linear-gradient(90deg, #0891b2, #00d4ff); box-shadow: 0 0 8px #00d4ff; }
+/* ── light ── */
+.kpi-light .kpi-label { color: var(--neon-purple); }
+.kpi-light .kpi-value { color: var(--neon-purple); text-shadow: 0 0 20px rgba(168,85,247,.4); }
+.kpi-light .kpi-arc-fill { background: linear-gradient(90deg, #7c3aed, #a855f7); box-shadow: 0 0 8px #a855f7; }
+/* ── water ── */
+.kpi-water .kpi-label { color: var(--neon-cyan); }
+.kpi-water .kpi-value { color: var(--neon-cyan); text-shadow: 0 0 20px rgba(6,182,212,.4); }
+.kpi-water .kpi-arc-fill { background: linear-gradient(90deg, #0e7490, #06b6d4); box-shadow: 0 0 8px #06b6d4; }
+
+/* ===================== CHART ===================== */
+.chart-panel {
+  margin-top: 0;
+}
+.chart-panel canvas {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+.chart-legend {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .06em;
+}
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* ===================== RIGHT COLUMN ===================== */
+.right-col {
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── Pump status ── */
+.pump-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 22px;
+}
+.pump-ring-wrap {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pump-ring-wrap svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.pump-center-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  z-index: 1;
+  transition: color .5s;
+  letter-spacing: .1em;
+}
+.pump-state {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  transition: color .5s;
+}
+.pump-desc {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.7;
+}
+.pump-thresholds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.thresh-chip {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: .06em;
+  text-align: center;
+}
+.thresh-chip .tv {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: block;
+  margin-top: 3px;
+}
+
+/* ── Alert list ── */
+.alert-log {
+  flex: 1;
+  overflow: hidden;
+}
+.alert-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.alert-scroll::-webkit-scrollbar { width: 3px; }
+.alert-scroll::-webkit-scrollbar-track { background: transparent; }
+.alert-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+.alert-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid;
+  font-size: 12px;
+  animation: slideIn .3s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.alert-entry.ok {
+  background: rgba(0,255,136,0.06);
+  border-color: rgba(0,255,136,0.2);
+}
+.alert-entry.warn {
+  background: rgba(251,191,36,0.06);
+  border-color: rgba(251,191,36,0.25);
+}
+.alert-entry.danger {
+  background: rgba(255,68,68,0.06);
+  border-color: rgba(255,68,68,0.25);
+}
+.alert-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.alert-entry.ok .alert-tag { color: var(--neon-green); border-color: rgba(0,255,136,.4); background: rgba(0,255,136,.08); }
+.alert-entry.warn .alert-tag { color: var(--neon-amber); border-color: rgba(251,191,36,.4); background: rgba(251,191,36,.08); }
+.alert-entry.danger .alert-tag { color: var(--neon-red); border-color: rgba(255,68,68,.4); background: rgba(255,68,68,.08); animation: blink .8s ease infinite; }
+@keyframes blink { 50% { opacity:.45; } }
+.alert-time { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); }
+
+/* ── Mini water & light meters ── */
+.meters-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* ===================== FOOTER ===================== */
+footer {
+  text-align: center;
+  margin-top: 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .06em;
+  padding: 16px 0 4px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* ===================== SCANNING LINE ===================== */
+.scan-line {
+  pointer-events: none;
+  position: fixed;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--neon-green) 50%, transparent 100%);
+  opacity: .18;
+  animation: scan 6s linear infinite;
+  z-index: 9999;
+}
+@keyframes scan { from { top: -2px; } to { top: 100vh; } }
+
+/* ===================== RADIAL GAUGE SVG ===================== */
+.radial-gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+</style>
+</head>
+<body>
+
+<!-- Scanning line overlay -->
+<div class="scan-line"></div>
+
+<!-- Particle canvas -->
+<canvas id="canvas-bg"></canvas>
+
+<div class="app">
+
+  <!-- ════ HEADER ════ -->
+  <header>
+    <div>
+      <div class="brand-eyebrow">⬡ IoT Field Station · Node ESP32-FARM-01</div>
+      <div class="brand-title">AgriPulse Monitor</div>
+      <div class="brand-sub">Soil · Climate · Photon · Water · Irrigation — Live Simulation</div>
+    </div>
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="s-label">Status</div>
+        <div class="live-dot">MQTT Live</div>
+      </div>
+      <div class="status-item">
+        <div class="s-label">Field Time</div>
+        <div class="s-value" id="clock" style="color:var(--neon-cyan);">--:--:--</div>
+      </div>
+      <div class="status-item">
+        <div class="s-label">Readings</div>
+        <div class="s-value" id="readingCount" style="color:var(--neon-purple);">0</div>
+      </div>
+      <div class="status-item">
+        <div class="s-label">Interval</div>
+        <div class="s-value" style="color:var(--neon-amber);">3s</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ════ MAIN GRID ════ -->
+  <div class="grid">
+
+    <!-- ══ LEFT: Soil Moisture ══ -->
+    <div class="panel soil-panel panel-glow-green">
+      <div class="panel-title" style="width:100%;">
+        Soil Moisture
+        <span class="badge" style="color:var(--neon-green); border-color:rgba(0,255,136,.3);" id="soilRawBadge">— raw</span>
+      </div>
+
+      <!-- Radial ring gauge -->
+      <div style="position:relative; width:200px; height:200px; margin-top:4px;">
+        <svg viewBox="0 0 200 200" width="200" height="200" style="position:absolute;inset:0;">
+          <defs>
+            <radialGradient id="soilGlowGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(0,255,136,0.12)"/>
+              <stop offset="100%" stop-color="transparent"/>
+            </radialGradient>
+          </defs>
+          <!-- Background track -->
+          <circle cx="100" cy="100" r="82" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="14" stroke-linecap="round"
+                  stroke-dasharray="440 516" stroke-dashoffset="-38" />
+          <!-- Glow circle -->
+          <circle cx="100" cy="100" r="82" fill="none" id="soilGlowRing"
+                  stroke="rgba(0,255,136,0.12)" stroke-width="26" stroke-linecap="round"
+                  stroke-dasharray="440 516" stroke-dashoffset="-38"/>
+          <!-- Colored arc -->
+          <circle cx="100" cy="100" r="82" fill="none" id="soilArc"
+                  stroke="url(#soilGradArc)" stroke-width="14" stroke-linecap="round"
+                  stroke-dasharray="0 516" stroke-dashoffset="-38"
+                  style="transition: stroke-dasharray 0.8s cubic-bezier(.4,0,.2,1);"/>
+          <defs>
+            <linearGradient id="soilGradArc" x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ff4444"/>
+              <stop offset="40%" stop-color="#fbbf24"/>
+              <stop offset="100%" stop-color="#00ff88"/>
+            </linearGradient>
+          </defs>
+          <!-- Center fill -->
+          <circle cx="100" cy="100" r="66" fill="radial-gradient(circle, rgba(0,20,40,0.8), rgba(2,13,26,0.95))"/>
+          <circle cx="100" cy="100" r="66" fill="rgba(0,10,20,0.85)"/>
+        </svg>
+        <!-- Center text -->
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+          <div id="soilPctValue" class="soil-big-value" style="color:var(--neon-green); text-shadow:0 0 20px rgba(0,255,136,.5);">–%</div>
+          <div class="soil-label">Volumetric</div>
+        </div>
+      </div>
+
+      <!-- Depth tube -->
+      <svg viewBox="0 0 100 280" width="80" height="220">
+        <defs>
+          <linearGradient id="tubeGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+            <stop offset="0%" stop-color="#ff4444"/>
+            <stop offset="45%" stop-color="#fbbf24"/>
+            <stop offset="100%" stop-color="#00ff88"/>
+          </linearGradient>
+          <clipPath id="tubeClip"><rect x="30" y="10" width="40" height="256" rx="18"/></clipPath>
+        </defs>
+        <!-- Tube body -->
+        <rect x="28" y="8" width="44" height="260" rx="20" fill="rgba(2,13,26,0.8)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+        <!-- Fill -->
+        <rect id="tubeFill" x="30" y="180" width="40" height="86" fill="url(#tubeGrad)" clip-path="url(#tubeClip)"
+              style="transition: y .8s cubic-bezier(.4,0,.2,1), height .8s cubic-bezier(.4,0,.2,1);"/>
+        <!-- Ticks -->
+        <g stroke="rgba(255,255,255,0.15)" stroke-width="1">
+          <line x1="18" y1="74" x2="28" y2="74"/>
+          <line x1="18" y1="138" x2="28" y2="138"/>
+          <line x1="18" y1="202" x2="28" y2="202"/>
+        </g>
+        <g font-family="JetBrains Mono" font-size="7" fill="rgba(200,220,255,0.35)">
+          <text x="2" y="77">0cm</text>
+          <text x="0" y="141">10cm</text>
+          <text x="0" y="205">20cm</text>
+        </g>
+        <!-- Root zone -->
+        <line x1="28" y1="150" x2="72" y2="150" stroke="rgba(0,255,136,0.5)" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <text x="74" y="153" font-family="JetBrains Mono" font-size="6" fill="rgba(0,255,136,0.7)">root</text>
+      </svg>
+
+      <div class="soil-raw" id="soilRawLabel">— raw ADC</div>
+      <div class="soil-label" style="max-width:220px; text-align:center; line-height:1.6; font-size:11px; color:var(--muted);">
+        Capacitive probe — fill rises as soil holds more water. Gradient shifts dry→wet.
+      </div>
+    </div>
+
+    <!-- ══ CENTER TOP: KPI Cards ══ -->
+    <div>
+      <div class="kpi-grid">
+
+        <!-- Temperature -->
+        <div class="kpi-card panel-glow-amber" id="tempCard">
+          <div class="kpi-label" style="color:var(--neon-amber);">🌡 Temperature</div>
+          <div class="kpi-value kpi-temp-val" id="tempValue" style="color:var(--neon-amber); text-shadow:0 0 20px rgba(251,191,36,.4);">–<span class="kpi-unit">°C</span></div>
+          <div class="kpi-arc"><div class="kpi-arc-fill" id="tempBar" style="width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24);box-shadow:0 0 8px #fbbf24;"></div></div>
+          <!-- Mini sparkline placeholder -->
+          <div style="margin-top:8px;">
+            <svg id="sparkTemp" viewBox="0 0 200 30" width="100%" height="30" preserveAspectRatio="none">
+              <polyline id="sparkTempLine" fill="none" stroke="rgba(251,191,36,0.5)" stroke-width="1.5" points=""/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Humidity -->
+        <div class="kpi-card panel-glow-blue" id="humCard">
+          <div class="kpi-label" style="color:var(--neon-blue);">💧 Humidity</div>
+          <div class="kpi-value" id="humValue" style="color:var(--neon-blue); text-shadow:0 0 20px rgba(0,212,255,.4);">–<span class="kpi-unit">%</span></div>
+          <div class="kpi-arc"><div class="kpi-arc-fill" id="humBar" style="width:0%;background:linear-gradient(90deg,#0891b2,#00d4ff);box-shadow:0 0 8px #00d4ff;"></div></div>
+          <div style="margin-top:8px;">
+            <svg id="sparkHum" viewBox="0 0 200 30" width="100%" height="30" preserveAspectRatio="none">
+              <polyline id="sparkHumLine" fill="none" stroke="rgba(0,212,255,0.5)" stroke-width="1.5" points=""/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Light -->
+        <div class="kpi-card panel-glow-purple">
+          <div class="kpi-label" style="color:var(--neon-purple);">☀️ Light Intensity</div>
+          <div class="kpi-value" id="lightValue" style="color:var(--neon-purple); text-shadow:0 0 20px rgba(168,85,247,.4);">–<span class="kpi-unit" style="font-size:11px;"> lux</span></div>
+          <div class="kpi-arc"><div class="kpi-arc-fill" id="lightBar" style="width:0%;background:linear-gradient(90deg,#7c3aed,#a855f7);box-shadow:0 0 8px #a855f7;"></div></div>
+          <div id="lightCaption" style="margin-top:8px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.04em;">—</div>
+        </div>
+
+        <!-- Water Tank -->
+        <div class="kpi-card panel-glow-blue">
+          <div class="kpi-label" style="color:var(--neon-cyan);">🪣 Water Tank</div>
+          <div class="kpi-value" id="tankValue" style="color:var(--neon-cyan); text-shadow:0 0 20px rgba(6,182,212,.4);">–<span class="kpi-unit">%</span></div>
+          <div class="kpi-arc"><div class="kpi-arc-fill" id="tankBar" style="width:0%;background:linear-gradient(90deg,#0e7490,#06b6d4);box-shadow:0 0 8px #06b6d4;"></div></div>
+          <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+            <!-- Mini animated water bars -->
+            <svg viewBox="0 0 140 30" width="140" height="30" id="wavesvg">
+              <defs>
+                <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="rgba(6,182,212,0.3)"/>
+                  <stop offset="100%" stop-color="rgba(0,212,255,0.7)"/>
+                </linearGradient>
+              </defs>
+              <path id="wavePath" d="" fill="url(#waveGrad)"/>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ══ LIVE MULTI-LINE CHART ══ -->
+      <div class="panel chart-panel panel-glow-blue" style="margin-top:18px;">
+        <div class="panel-title">
+          Live Sensor Trends
+          <span id="chartReadingLabel" class="badge" style="color:var(--neon-blue);border-color:rgba(0,212,255,.3);">0 pts</span>
+        </div>
+        <canvas id="liveChart" height="160"></canvas>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--neon-green);color:var(--neon-green);"></div>Soil Moisture %</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--neon-amber);color:var(--neon-amber);"></div>Temperature °C</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--neon-blue);color:var(--neon-blue);"></div>Humidity %</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--neon-purple);color:var(--neon-purple);"></div>Light %</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RIGHT COLUMN ══ -->
+    <div class="right-col">
+
+      <!-- Pump status -->
+      <div class="panel pump-panel">
+        <div class="panel-title" style="width:100%;">
+          Irrigation Pump
+          <span id="pumpBadge" class="badge" style="color:var(--neon-green);border-color:rgba(0,255,136,.3);">IDLE</span>
+        </div>
+
+        <div class="pump-ring-wrap">
+          <svg viewBox="0 0 130 130" width="130" height="130">
+            <circle cx="65" cy="65" r="55" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
+            <circle id="pumpGlowRing" cx="65" cy="65" r="55" fill="none"
+                    stroke="rgba(0,255,136,0.1)" stroke-width="20"/>
+            <circle id="pumpProgressRing" cx="65" cy="65" r="55" fill="none"
+                    stroke="var(--neon-green)" stroke-width="10" stroke-linecap="round"
+                    stroke-dasharray="345.4" stroke-dashoffset="345.4"
+                    stroke-dashoffset="0"
+                    transform="rotate(-90 65 65)"
+                    style="transition: stroke .6s, stroke-dashoffset .8s;"/>
+          </svg>
+          <div class="pump-center-text" id="pumpCenterText" style="color:var(--neon-green);">IDLE</div>
+        </div>
+
+        <div class="pump-state" id="pumpStateLabel" style="color:var(--neon-green);">Pump Off</div>
+        <div class="pump-desc" id="pumpDesc">Soil moisture is within the healthy range. No irrigation required.</div>
+
+        <div class="pump-thresholds">
+          <div class="thresh-chip">Dry Threshold<span class="tv" style="color:var(--neon-red);">&lt;1500</span></div>
+          <div class="thresh-chip">Wet Threshold<span class="tv" style="color:var(--neon-green);">&gt;2600</span></div>
+          <div class="thresh-chip">Water Cutoff<span class="tv" style="color:var(--neon-amber);">15%</span></div>
+          <div class="thresh-chip">High Temp<span class="tv" style="color:var(--neon-red);">38°C</span></div>
+        </div>
+
+        <!-- Auto mode note -->
+        <div style="width:100%;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.18);font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(0,255,136,0.8);letter-spacing:.06em;line-height:1.7;">
+          ⚡ FULLY AUTOMATIC — Pump turns ON when soil &lt; 1500 raw and turns OFF when soil &gt; 2600 raw. Tank cutoff locks pump at ≤ 15%.
+        </div>
+      </div>
+
+      <!-- Alert log -->
+      <div class="panel alert-log">
+        <div class="panel-title">
+          Alert Log
+          <span id="alertCount" class="badge" style="color:var(--neon-red);border-color:rgba(255,68,68,.3);">0</span>
+        </div>
+        <div class="alert-scroll" id="alertList"></div>
+      </div>
+
+    </div>
+
+  </div><!-- /grid -->
+
+  <footer>
+    Simulated Data · IoT-Enabled Smart Agriculture · ESP32 + DHT22 + Capacitive Soil + LDR + Water Level · MQTT farm/node1/data · Updates every 3s
+  </footer>
+
+</div><!-- /app -->
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   PARTICLE BACKGROUND
+══════════════════════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('canvas-bg');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLORS = ['#00ff88','#00d4ff','#a855f7','#fbbf24','#06b6d4'];
+  function makeParticle(){
+    const c = COLORS[Math.floor(Math.random()*COLORS.length)];
+    return {
+      x: Math.random()*W, y: Math.random()*H,
+      vx: (Math.random()-.5)*.25, vy: (Math.random()-.5)*.25,
+      r: Math.random()*1.8+.4,
+      alpha: Math.random()*.5+.1,
+      color: c
+    };
+  }
+  for(let i=0;i<110;i++) particles.push(makeParticle());
+
+  function drawParticles(){
+    ctx.clearRect(0,0,W,H);
+    for(let p of particles){
+      p.x += p.vx; p.y += p.vy;
+      if(p.x<0) p.x=W; if(p.x>W) p.x=0;
+      if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+    }
+    // Draw connecting lines between nearby particles
+    ctx.lineWidth = .35;
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx = particles[i].x-particles[j].x;
+        const dy = particles[i].y-particles[j].y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < 100){
+          ctx.globalAlpha = (.12*(1-dist/100));
+          ctx.strokeStyle = particles[i].color;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   SIMULATION ENGINE  (mirrors python_simulation logic)
+══════════════════════════════════════════════════════════════ */
+const SOIL_DRY = 1500, SOIL_WET = 2600, WATER_LOW = 15, TEMP_HIGH = 38;
+// Start soil below dry threshold → pump turns ON immediately on load
+let soilMoisture = 1300, waterTank = 78, pumpOn = false;
+let readingCount = 0;
+let alertLogEntries = [];
+
+// Multi-series history (normalized 0-100)
+const MAX_PTS = 80;
+const history = { soil: [], temp: [], hum: [], light: [] };
+
+function hourFraction(d){ return d.getHours() + d.getMinutes()/60; }
+function ambientTemp(h){ return 24 + 7.5*Math.sin((h-7)/24*2*Math.PI); }
+function ambientHumidity(h){ return Math.max(30, Math.min(95, 65-15*Math.sin((h-7)/24*2*Math.PI)+(Math.random()*4-2))); }
+function lightIntensity(h){
+  if(h>=6 && h<=18.5){ const d=Math.sin((h-6)/12.5*Math.PI); return Math.max(0,Math.min(4095,Math.round(3900*Math.max(0,d))+(Math.random()*80-40))); }
+  return Math.max(0,Math.round(Math.random()*30));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIVE CHART  (Canvas)
+══════════════════════════════════════════════════════════════ */
+const chartCanvas = document.getElementById('liveChart');
+const chartCtx = chartCanvas.getContext('2d');
+chartCanvas.width = chartCanvas.offsetWidth * window.devicePixelRatio || 600;
+chartCanvas.height = 160 * window.devicePixelRatio || 160;
+chartCanvas.style.height = '160px';
+
+function resizeChart(){
+  const w = chartCanvas.parentElement.clientWidth - 44;
+  chartCanvas.width = w * (window.devicePixelRatio||1);
+  chartCanvas.height = 160 * (window.devicePixelRatio||1);
+  chartCanvas.style.width = w+'px';
+  chartCanvas.style.height = '160px';
+}
+resizeChart();
+window.addEventListener('resize', resizeChart);
+
+function drawChart(){
+  const dpr = window.devicePixelRatio||1;
+  const W = chartCanvas.width, H = chartCanvas.height;
+  chartCtx.clearRect(0,0,W,H);
+
+  // Grid lines
+  chartCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+  chartCtx.lineWidth = 1;
+  for(let i=1;i<4;i++){
+    chartCtx.beginPath();
+    chartCtx.moveTo(0, H*i/4);
+    chartCtx.lineTo(W, H*i/4);
+    chartCtx.stroke();
+  }
+
+  // Draw each series
+  const series = [
+    { data: history.soil,  color: '#00ff88', glow: 'rgba(0,255,136,0.25)' },
+    { data: history.temp,  color: '#fbbf24', glow: 'rgba(251,191,36,0.2)' },
+    { data: history.hum,   color: '#00d4ff', glow: 'rgba(0,212,255,0.2)' },
+    { data: history.light, color: '#a855f7', glow: 'rgba(168,85,247,0.2)' },
+  ];
+
+  for(const s of series){
+    if(s.data.length < 2) continue;
+    const n = s.data.length;
+
+    // Filled area
+    chartCtx.beginPath();
+    s.data.forEach((v,i)=>{
+      const x = (i/(MAX_PTS-1))*W;
+      const y = H - (v/100)*H*0.92 - H*0.04;
+      i===0 ? chartCtx.moveTo(x,y) : chartCtx.lineTo(x,y);
+    });
+    chartCtx.lineTo((n-1)/(MAX_PTS-1)*W, H);
+    chartCtx.lineTo(0, H);
+    const grad = chartCtx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, s.glow);
+    grad.addColorStop(1, 'transparent');
+    chartCtx.fillStyle = grad;
+    chartCtx.fill();
+
+    // Line with glow
+    chartCtx.shadowColor = s.color;
+    chartCtx.shadowBlur = 6*dpr;
+    chartCtx.strokeStyle = s.color;
+    chartCtx.lineWidth = 2*dpr;
+    chartCtx.lineJoin = 'round';
+    chartCtx.beginPath();
+    s.data.forEach((v,i)=>{
+      const x = (i/(MAX_PTS-1))*W;
+      const y = H - (v/100)*H*0.92 - H*0.04;
+      i===0 ? chartCtx.moveTo(x,y) : chartCtx.lineTo(x,y);
+    });
+    chartCtx.stroke();
+    chartCtx.shadowBlur = 0;
+  }
+}
+
+/* Mini sparklines */
+function drawSparkline(id, data, color){
+  const line = document.getElementById(id);
+  if(data.length < 2){ line.setAttribute('points',''); return; }
+  const W=200, H=30;
+  const mn=Math.min(...data), mx=Math.max(...data), rng=mx-mn||1;
+  const pts = data.map((v,i)=>`${(i/(data.length-1))*W},${H-((v-mn)/rng)*(H-4)-2}`).join(' ');
+  line.setAttribute('points', pts);
+}
+
+/* Animated water wave */
+let waveOffset = 0;
+function drawWave(pct){
+  waveOffset += 0.08;
+  const W=140, H=30;
+  const baseY = H - (pct/100)*H;
+  let d = `M 0 ${H}`;
+  for(let x=0;x<=W;x+=4){
+    const y = baseY + Math.sin((x/W)*Math.PI*3 + waveOffset)*4;
+    d += ` L ${x} ${y}`;
+  }
+  d += ` L ${W} ${H} Z`;
+  document.getElementById('wavePath').setAttribute('d', d);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PUMP RING
+══════════════════════════════════════════════════════════════ */
+function setPumpUI(state){ // 'idle' | 'on' | 'locked'
+  const ring = document.getElementById('pumpProgressRing');
+  const glow = document.getElementById('pumpGlowRing');
+  const center = document.getElementById('pumpCenterText');
+  const label = document.getElementById('pumpStateLabel');
+  const desc = document.getElementById('pumpDesc');
+  const badge = document.getElementById('pumpBadge');
+  const circ = 2*Math.PI*55;
+
+  if(state === 'on'){
+    ring.style.stroke = '#00d4ff';
+    glow.style.stroke = 'rgba(0,212,255,0.2)';
+    ring.setAttribute('stroke-dashoffset', 0);
+    ring.style.animation = 'pumpSpin 2s linear infinite';
+    ring.closest('svg').style.animation = 'pumpPulse 1.2s ease-in-out infinite';
+    center.textContent = 'ON'; center.style.color = '#00d4ff';
+    label.textContent = 'Pump Running'; label.style.color = '#00d4ff';
+    badge.textContent = 'ACTIVE'; badge.style.color = '#00d4ff'; badge.style.borderColor = 'rgba(0,212,255,.35)';
+    desc.textContent = `Soil moisture (${Math.round(soilMoisture)} raw) below dry threshold ${SOIL_DRY}. Irrigation active.`;
+  } else if(state === 'locked'){
+    ring.style.stroke = '#ff4444';
+    glow.style.stroke = 'rgba(255,68,68,0.15)';
+    ring.setAttribute('stroke-dashoffset', circ*0.5);
+    ring.style.animation = 'none';
+    ring.closest('svg').style.animation = 'none';
+    center.textContent = 'LOCK'; center.style.color = '#ff4444';
+    label.textContent = 'Pump Locked'; label.style.color = '#ff4444';
+    badge.textContent = 'LOCKOUT'; badge.style.color = '#ff4444'; badge.style.borderColor = 'rgba(255,68,68,.35)';
+    desc.textContent = 'Tank ≤ 15% safety cutoff. Pump locked to prevent dry-run — refill to resume.';
+  } else {
+    ring.style.stroke = '#00ff88';
+    glow.style.stroke = 'rgba(0,255,136,0.1)';
+    ring.setAttribute('stroke-dashoffset', circ*0.75);
+    ring.style.animation = 'none';
+    ring.closest('svg').style.animation = 'none';
+    center.textContent = 'IDLE'; center.style.color = '#00ff88';
+    label.textContent = 'Pump Off'; label.style.color = '#00ff88';
+    badge.textContent = 'IDLE'; badge.style.color = '#00ff88'; badge.style.borderColor = 'rgba(0,255,136,.3)';
+    desc.textContent = 'Soil moisture in healthy range. System holding — no irrigation needed.';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ALERT LOG
+══════════════════════════════════════════════════════════════ */
+function addAlert(tag, level, time){
+  alertLogEntries.unshift({ tag, level, time: time.toLocaleTimeString() });
+  if(alertLogEntries.length > 20) alertLogEntries.pop();
+  const list = document.getElementById('alertList');
+  list.innerHTML = '';
+  alertLogEntries.forEach(a=>{
+    const el = document.createElement('div');
+    el.className = `alert-entry ${a.level}`;
+    el.innerHTML = `<span class="alert-tag">${a.tag}</span><span class="alert-time">${a.time}</span>`;
+    list.appendChild(el);
+  });
+  document.getElementById('alertCount').textContent = alertLogEntries.length;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SOIL GAUGE UPDATE
+══════════════════════════════════════════════════════════════ */
+function updateSoilGauge(pct){
+  const circ = 2*Math.PI*82; // ~515.2
+  const arc = (pct/100) * 440; // 440 is the drawn arc length
+  document.getElementById('soilArc').setAttribute('stroke-dasharray', `${arc} 516`);
+  // Color
+  const color = pct < 25 ? '#ff4444' : pct < 45 ? '#fbbf24' : '#00ff88';
+  document.getElementById('soilPctValue').style.color = color;
+  document.getElementById('soilPctValue').style.textShadow = `0 0 20px ${color}80`;
+  // Tube fill
+  const fillH = Math.max(8, (pct/100)*256);
+  const fillY = 10 + (256 - fillH);
+  document.getElementById('tubeFill').setAttribute('y', fillY);
+  document.getElementById('tubeFill').setAttribute('height', fillH);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN SIMULATION STEP
+══════════════════════════════════════════════════════════════ */
+function step(){
+  const now = new Date();
+  const hour = hourFraction(now);
+  const temp = +(ambientTemp(hour) + (Math.random()*1.2-.6)).toFixed(1);
+  const hum = +(ambientHumidity(hour)).toFixed(1);
+  const light = lightIntensity(hour);
+  const evap = 4 + (light/4095)*6 + Math.max(0, temp-24)*0.8;
+
+  if(pumpOn){
+    soilMoisture = Math.min(3600, soilMoisture + 45);
+    waterTank = Math.max(0, waterTank - 0.15);
+  } else {
+    soilMoisture = Math.max(900, soilMoisture - evap*0.25 - Math.random()*0.5);
+  }
+
+  // Fully automatic irrigation logic (hysteresis control)
+  let alertLevel = 'ok', alertTag = 'NOMINAL';
+  if(waterTank <= WATER_LOW){ pumpOn = false; alertLevel='danger'; alertTag='LOW WATER'; }
+  else if(soilMoisture < SOIL_DRY){ pumpOn = true; }   // Soil too dry → pump ON
+  else if(soilMoisture > SOIL_WET){ pumpOn = false; }  // Soil adequately wet → pump OFF
+  // Hysteresis: once ON, stays ON until SOIL_WET; once OFF, stays OFF until SOIL_DRY
+  if(soilMoisture < SOIL_DRY && waterTank > WATER_LOW){ alertLevel='warn'; alertTag='LOW SOIL'; }
+  if(pumpOn && alertLevel==='ok'){ alertLevel='ok'; alertTag='IRRIGATING'; }
+  if(temp >= TEMP_HIGH){ alertLevel='danger'; alertTag='HIGH TEMP'; }
+
+  readingCount++;
+  addAlert(alertTag, alertLevel, now);
+
+  // Normalize for history (0-100 scale)
+  const soilPct = Math.round(((soilMoisture-900)/(3600-900))*100);
+  const tempPct = Math.round((temp/45)*100);
+  const humPct = Math.round(hum);
+  const lightPct = Math.round((light/4095)*100);
+
+  const push = (arr, v) => { arr.push(v); if(arr.length>MAX_PTS) arr.shift(); };
+  push(history.soil, soilPct);
+  push(history.temp, tempPct);
+  push(history.hum, humPct);
+  push(history.light, lightPct);
+
+  // Keep separate sparkline history
+  if(!window.sparkTData) window.sparkTData = [];
+  if(!window.sparkHData) window.sparkHData = [];
+  window.sparkTData.push(temp); if(window.sparkTData.length>30) window.sparkTData.shift();
+  window.sparkHData.push(hum); if(window.sparkHData.length>30) window.sparkHData.shift();
+
+  /* ─── DOM updates ─── */
+  document.getElementById('clock').textContent = now.toLocaleTimeString();
+  document.getElementById('readingCount').textContent = readingCount;
+
+  // Soil
+  document.getElementById('soilPctValue').textContent = soilPct + '%';
+  document.getElementById('soilRawBadge').textContent = Math.round(soilMoisture) + ' raw';
+  document.getElementById('soilRawLabel').textContent = Math.round(soilMoisture) + ' raw ADC';
+  updateSoilGauge(soilPct);
+
+  // Temp
+  document.getElementById('tempValue').innerHTML = temp + '<span class="kpi-unit">°C</span>';
+  document.getElementById('tempBar').style.width = Math.min(100,(temp/45)*100) + '%';
+  const tempColor = temp > 35 ? '#ff4444' : temp > 28 ? '#fbbf24' : '#00ff88';
+  document.getElementById('tempValue').style.color = tempColor;
+  document.getElementById('tempValue').style.textShadow = `0 0 20px ${tempColor}60`;
+
+  // Humidity
+  document.getElementById('humValue').innerHTML = hum + '<span class="kpi-unit">%</span>';
+  document.getElementById('humBar').style.width = hum + '%';
+
+  // Light
+  document.getElementById('lightValue').innerHTML = light + '<span class="kpi-unit" style="font-size:11px;"> raw</span>';
+  document.getElementById('lightBar').style.width = (light/4095*100) + '%';
+  document.getElementById('lightCaption').textContent = light>2500 ? '☀️ Full sun' : light>300 ? '⛅ Overcast / partial shade' : '🌙 Night / low light';
+
+  // Water tank
+  document.getElementById('tankValue').innerHTML = Math.round(waterTank) + '<span class="kpi-unit">%</span>';
+  document.getElementById('tankBar').style.width = waterTank + '%';
+  const tankColor = waterTank < 20 ? '#ff4444' : waterTank < 40 ? '#fbbf24' : '#06b6d4';
+  document.getElementById('tankValue').style.color = tankColor;
+
+  // Pump
+  const pumpState = waterTank <= WATER_LOW ? 'locked' : pumpOn ? 'on' : 'idle';
+  setPumpUI(pumpState);
+
+  // Charts
+  drawChart();
+  drawSparkline('sparkTempLine', window.sparkTData.map(v=>((v-15)/25)*100), '#fbbf24');
+  drawSparkline('sparkHumLine', window.sparkHData, '#00d4ff');
+  drawWave(waterTank);
+  document.getElementById('chartReadingLabel').textContent = history.soil.length + ' pts';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WAVE ANIMATION (independent RAF loop)
+══════════════════════════════════════════════════════════════ */
+(function waveLoop(){
+  drawWave(waterTank);
+  requestAnimationFrame(waveLoop);
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════════════════════════ */
+step();
+setInterval(step, 3000);
+</script>
+</body>
+</html>
