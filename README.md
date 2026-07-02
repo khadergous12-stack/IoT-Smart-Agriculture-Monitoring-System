@@ -105,21 +105,6 @@ Simulation complete.
   Sensor report    : outputs/sensor_report.txt
 ```
 
-## Documentation
-
-| File | Contents |
-|---|---|
-| [`docs/01_project_explanation.md`](docs/01_project_explanation.md) | What this is and why it matters |
-| [`docs/02_tech_stack_options.md`](docs/02_tech_stack_options.md) | Easy / Intermediate / Advanced stack comparison |
-| [`docs/03_architecture.md`](docs/03_architecture.md) | Full system architecture and data flow |
-| [`docs/04_implementation_plan.md`](docs/04_implementation_plan.md) | Phase-by-phase build plan |
-| [`docs/05_installation_setup_guide.md`](docs/05_installation_setup_guide.md) | Arduino IDE, Wokwi, Python, dashboard setup |
-| [`docs/06_virtual_simulation.md`](docs/06_virtual_simulation.md) | How to simulate every scenario without hardware |
-| [`docs/07_how_to_run.md`](docs/07_how_to_run.md) | Run commands + expected output |
-| [`docs/08_github_upload_steps.md`](docs/08_github_upload_steps.md) | Repo setup, commit sequence, security notes |
-| [`docs/09_proof_building_strategy.md`](docs/09_proof_building_strategy.md) | Day-wise build & commit plan |
-| [`docs/10_interview_preparation.md`](docs/10_interview_preparation.md) | 10 interview Q&A |
-
 ## Learning Outcomes
 
 - Designing and wiring a multi-sensor embedded system around an ESP32
@@ -159,20 +144,3 @@ Install via Arduino IDE Library Manager (Sketch → Include Library → Manage L
 
 
 ---
-
-## Screenshots (`images/`)
-
-Add your own captured screenshots here before pushing to GitHub.
-See `docs/06_virtual_simulation.md` for the full list of what to capture. At minimum:
-
-- [ ] Project folder structure screenshot
-- [ ] Wokwi/Tinkercad simulation screenshot
-- [ ] Serial monitor output screenshot
-- [ ] `dashboard/index.html` running in a browser
-- [ ] `data/sensor_log.csv` opened in a spreadsheet
-- [ ] `outputs/alert_log.txt` contents
-- [ ] Final GitHub repository page
-
-Suggested filenames: `01_folder_structure.png`, `02_wokwi_simulation.png`,
-`03_serial_monitor.png`, `04_dashboard.png`, `05_csv_data.png`,
-`06_alert_log.png`, `07_github_repo.png`.
